@@ -155,12 +155,12 @@ curl -X POST http://localhost:7772/api/tts \
 
 ## License
 
-This repository combines components under **different** licenses — read all three before using it
-for anything beyond personal research:
+This repository combines components under **different** licenses — the model weights' terms are
+the restrictive ones, so read them before using this for anything beyond personal research:
 
 | Component | License | Notes |
 |---|---|---|
-| This repo's own code (`app/`, `scripts/`, Docker files) | **Private — all rights reserved** | No license granted yet; choose one (e.g. Apache-2.0 to match upstream) before making the repo public. |
+| This repo's own code (`app/`, `scripts/`, Docker files) | [Apache-2.0](LICENSE) | Matches upstream's code license. |
 | Upstream code `upstream/breeze-tts` | [Apache-2.0](upstream/breeze-tts/LICENSE) | © BreezeBlue; used unmodified as a git submodule. |
 | **Breeze-TTS-2 model weights** | [BreezeBlue Research and Non-Commercial License v1.0](upstream/breeze-tts/MODEL_LICENSE) | **Research / non-commercial only. Not open source. Commercial use requires a separate written license from BreezeBlue (Resonia, Inc.).** Weights are therefore never baked into the Docker image or committed here — download them yourself and accept the terms on Hugging Face. |
 | Breeze-ASR-25 weights | [Apache-2.0](https://huggingface.co/MediaTek-Research/Breeze-ASR-25) | © MediaTek Research. |
