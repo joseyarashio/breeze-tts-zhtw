@@ -34,20 +34,47 @@ Dockerfile, docker-compose.yml
 ## Quick start (Docker, recommended)
 
 ```bash
+# HTTPS / gh also work: gh repo clone romanticamaj/breeze-tts-zhtw -- --recurse-submodules
 git clone --recurse-submodules git@github.com:romanticamaj/breeze-tts-zhtw.git
 cd breeze-tts-zhtw
-# weights (≈7.2 GB + 3.1 GB) go outside the repo, default C:\ai-models\{breeze-tts-2,breeze-asr}
-pwsh scripts/download_models.ps1          # or set BREEZE_TTS2_WEIGHTS / BREEZE_ASR_WEIGHTS
-docker compose up -d --build              # first build ≈ 10 min, image ≈ 13.5 GB
+
+# 1) Weights live OUTSIDE the repo (≈7.2 GB + 3.1 GB). Skip this if you already have them.
+pwsh scripts/download_models.ps1          # → C:\ai-models\breeze-tts-2 and C:\ai-models\breeze-asr
+
+# 2) Build + run. First build 10–15 min from cold (≈3 GB torch download), image ≈ 13.5 GB.
+docker compose up -d --build
 ```
 
-Open http://localhost:7772 (`BREEZE_PORT` to change the host port).
-`/health` reports device, VRAM, and whether the in-process ASR is loaded.
-Model load takes 1–3 minutes after the container starts; the UI shows 「模型載入中…」 until then.
+**How the weights get in:** `docker-compose.yml` bind-mounts two host directories read-only —
+`C:/ai-models/breeze-tts-2 → /models/breeze-tts-2` and `C:/ai-models/breeze-asr → /models/breeze-asr`.
+If yours live elsewhere, put the host paths in a `.env` next to the compose file before `up`:
+
+```
+BREEZE_TTS2_WEIGHTS=D:/models/breeze-tts-2
+BREEZE_ASR_WEIGHTS=D:/models/breeze-asr
+BREEZE_PORT=7772
+```
+
+Sanity check of a complete download: `breeze-tts-2/` contains `model-00001-of-00002.safetensors`,
+`model-00002-of-00002.safetensors`, `config.json`, `tokenizer.json` and an `audio_tokenizer/` folder;
+`breeze-asr/` contains `model.safetensors` and `config.json`.
+
+Open http://localhost:7772. Model load takes ≈ 1 min on NVMe (up to ~3 min on slower disks);
+until then `/health` answers **HTTP 503 `{"status":"loading"}`** (so `curl -f` fails on purpose) and
+the UI shows 「模型載入中…」. When ready `/health` reports device, VRAM, `fast_path` and `asr_mode`.
 
 Requirements: NVIDIA GPU ≥ 12 GB (7.2 GB resident + 3.1 GB while ASR is loaded),
 Docker with the NVIDIA container runtime, CUDA 12.8-capable driver (RTX 50-series OK).
 Already cloned without `--recurse-submodules`? Run `git submodule update --init`.
+
+**Build/log noise that is expected and harmless:**
+
+- Build: the flash-attn step prints `Preparing metadata (setup.py): finished with status 'error'`
+  followed by `>> flash-attn wheel not available … fast path disabled`. Intended fallback; `/health`
+  will show `fast_path: false`. (Also two `Running pip as the 'root' user` warnings.)
+- Runtime: `The tokenizer you are loading … incorrect regex pattern … fix_mistral_regex` (upstream
+  tokenizer config; output is unaffected), `SoX could not be found` (torchaudio backend probe — we
+  decode with libsndfile, not SoX), `flash-attn is not installed`, and FastAPI's `on_event is deprecated`.
 
 Day-to-day:
 
