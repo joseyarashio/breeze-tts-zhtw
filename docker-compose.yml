@@ -1,0 +1,35 @@
+services:
+  breeze-tts-zhtw:
+    build: .
+    image: breeze-tts-zhtw:latest
+    container_name: breeze-tts-zhtw
+    ports:
+      - "${BREEZE_PORT:-7772}:7772"
+    environment:
+      BREEZE_TTS2_PORT: "7772"
+      BREEZE_TTS2_MODEL_PATH: /models/breeze-tts-2
+      BREEZE_ASR_MODEL_PATH: /models/breeze-asr
+      # empty = standalone: always use the in-container Breeze ASR for reference clips
+      BREEZE_ASR_SERVICE_URL: ""
+      BREEZE_ASR_IDLE_UNLOAD_SEC: "600"
+      # 1 = upstream fast path (CUDA graphs; ~14.4GB VRAM, needs flash-attn in image)
+      BREEZE_TTS2_FAST: "0"
+    volumes:
+      - ${BREEZE_TTS2_WEIGHTS:-C:/ai-models/breeze-tts-2}:/models/breeze-tts-2:ro
+      - ${BREEZE_ASR_WEIGHTS:-C:/ai-models/breeze-asr}:/models/breeze-asr:ro
+      - ./outputs:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7772/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 600s
+      retries: 3

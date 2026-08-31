@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+outputs/
+uploads/
+*.log
+.env
+.env.*
+*.wav
+*.mp3
+*.flac
+*.safetensors

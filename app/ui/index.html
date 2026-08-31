@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breeze TTS 2 — 語音合成 / 聲音克隆</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #171e2e; --panel2: #1d2639; --line: #2a3550;
+    --text: #e8ecf5; --muted: #8b96ad; --accent: #5b9dff; --accent2: #7bc9a4;
+    --danger: #ff7b7b; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  #status { font-size: 13px; padding: 3px 10px; border-radius: 20px; background: var(--panel2); border: 1px solid var(--line); }
+  #status.ok { color: var(--accent2); } #status.bad { color: var(--danger); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-top: 16px; }
+  label.head { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  textarea, input[type=text], input[type=number] {
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical;
+  }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+  #text { min-height: 130px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; user-select: none; }
+  .toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+  #preview {
+    display: none; margin-top: 10px; padding: 10px 12px; background: var(--panel2);
+    border-left: 3px solid var(--accent2); border-radius: 0 8px 8px 0; font-size: 14px; white-space: pre-wrap;
+  }
+  .drop {
+    border: 1.5px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center;
+    color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s; font-size: 14px;
+  }
+  .drop.over, .drop:hover { border-color: var(--accent); background: rgba(91,157,255,.06); }
+  .drop.hasfile { border-style: solid; border-color: var(--accent2); color: var(--text); }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+  .adv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .adv > div { font-size: 13px; }
+  button.primary {
+    margin-top: 18px; width: 100%; padding: 13px; font-size: 16px; font-weight: 700;
+    background: var(--accent); color: #0b1220; border: 0; border-radius: 10px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .result { border-top: 1px solid var(--line); padding: 14px 0; }
+  .result:first-child { border-top: 0; }
+  .result .meta { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; word-break: break-all; }
+  audio { width: 100%; margin: 4px 0; }
+  a.dl {
+    display: inline-block; margin-top: 6px; padding: 7px 16px; border-radius: 8px; font-size: 13.5px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--accent2); text-decoration: none;
+  }
+  a.dl:hover { border-color: var(--accent2); }
+  /* info tooltip */
+  .info { position: relative; display: inline-flex; align-items: center; justify-content: center;
+          width: 16px; height: 16px; margin-left: 6px; border-radius: 50%; font-size: 11px; font-weight: 700;
+          background: var(--panel2); border: 1px solid var(--line); color: var(--muted); cursor: help;
+          vertical-align: middle; outline: none; }
+  .info:hover, .info:focus { border-color: var(--accent); color: var(--accent); }
+  .info .tip { display: none; position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+               width: 280px; padding: 10px 12px; border-radius: 8px; background: #0b1020; color: var(--text);
+               border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.45); font-size: 12.5px;
+               font-weight: 400; line-height: 1.5; text-align: left; white-space: normal; z-index: 20; }
+  .info .tip b { color: var(--accent2); }
+  .info:hover .tip, .info:focus .tip { display: block; }
+  /* vocal event chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .chips .grp { color: var(--muted); font-size: 12px; margin-right: 2px; }
+  .chip { padding: 4px 10px; border-radius: 999px; font-size: 13px; cursor: pointer; user-select: none;
+          background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+  .chip:hover { border-color: var(--accent2); color: var(--accent2); }
+  .chip.exp { border-style: dashed; color: var(--muted); }
+  .chip.exp:hover { color: var(--accent2); }
+  button.mini {
+    padding: 4px 10px; font-size: 12.5px; border-radius: 6px; cursor: pointer;
+    background: var(--panel2); color: var(--accent); border: 1px solid var(--line);
+  }
+  button.mini:hover { border-color: var(--accent); }
+  textarea.busy { opacity: .6; }
+  #err { display: none; margin-top: 14px; color: var(--danger); background: rgba(255,123,123,.08);
+         border: 1px solid rgba(255,123,123,.35); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #0b1220; border-top-color: transparent;
+             border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌬️ Breeze TTS 2</h1>
+    <span class="sub">中英雙語 · 聲音克隆 · 24 kHz</span>
+    <span id="status">連線中…</span>
+  </header>
+
+  <div class="card">
+    <label class="head" for="text">要合成的段落</label>
+    <textarea id="text" placeholder="輸入要唸的文字…（可打繁體，勾選下方自動轉簡體）&#10;可插入 vocal events：中文用 [笑]、[叹气]、[咳嗽]；英文用 (laugh)、(sigh)"></textarea>
+    <div class="chips" id="chips">
+      <span class="grp">🎭 聲音表情（點一下插入游標處）· 中文：</span>
+      <span class="chip" data-ev="[笑]">[笑]</span>
+      <span class="chip" data-ev="[叹气]">[叹气] 嘆氣</span>
+      <span class="chip" data-ev="[咳嗽]">[咳嗽]</span>
+      <span class="chip" data-ev="[清嗓子]">[清嗓子]</span>
+      <span class="grp" style="margin-left:6px">English：</span>
+      <span class="chip" data-ev="(laugh)">(laugh)</span>
+      <span class="chip" data-ev="(sigh)">(sigh)</span>
+      <span class="chip" data-ev="(cough)">(cough)</span>
+      <span class="chip" data-ev="(clears throat)">(clears throat)</span>
+      <span class="info" tabindex="0">?
+        <span class="tip">以上 8 個是 Breeze-TTS-2 官方文件明確列出的 vocal events。<br>
+        規則：<b>中文句子用全形方括號 [ ]</b>、<b>英文句子用圓括號 ( )</b>，放在要發出聲音的位置（句首最穩）。<br>
+        標籤不是特殊 token，而是模型在訓練資料裡學到的文字，所以要照原樣寫（簡體 [叹气]；勾了繁→簡的話打 [嘆氣] 也會自動轉）。</span>
+      </span>
+    </div>
+    <details style="margin-top:6px">
+      <summary>實驗性標籤（官方未列出，效果不保證，可試試）</summary>
+      <div class="chips" style="margin-top:8px">
+        <span class="grp">中文：</span>
+        <span class="chip exp" data-ev="[哭]">[哭]</span>
+        <span class="chip exp" data-ev="[呼吸]">[呼吸]</span>
+        <span class="chip exp" data-ev="[惊讶]">[惊讶] 驚訝</span>
+        <span class="chip exp" data-ev="[大笑]">[大笑]</span>
+        <span class="chip exp" data-ev="[停顿]">[停顿] 停頓</span>
+        <span class="grp" style="margin-left:6px">English：</span>
+        <span class="chip exp" data-ev="(chuckle)">(chuckle)</span>
+        <span class="chip exp" data-ev="(gasp)">(gasp)</span>
+        <span class="chip exp" data-ev="(breath)">(breath)</span>
+        <span class="chip exp" data-ev="(sniff)">(sniff)</span>
+        <span class="chip exp" data-ev="(pause)">(pause)</span>
+      </div>
+    </details>
+    <div class="row" style="margin-top:10px">
+      <label class="toggle"><input type="checkbox" id="t2s" checked> 繁體 → 簡體 自動轉換（送給模型前）</label>
+    </div>
+    <div id="preview"></div>
+  </div>
+
+  <div class="card">
+    <label class="head">聲音克隆（參考音檔）</label>
+    <div class="drop" id="drop">點擊或拖曳上傳參考音檔（乾淨人聲 wav/mp3，5–15 秒佳）</div>
+    <input type="file" id="refFile" accept="audio/*" hidden>
+    <audio id="refPreview" controls style="display:none"></audio>
+    <div style="margin-top:12px">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <label class="head" for="refText" style="font-weight:500;font-size:13.5px;margin:0">參考音檔的逐字稿（克隆時必填）</label>
+        <span class="row" style="gap:10px">
+          <span id="asrStatus" class="hint" style="margin:0"></span>
+          <button type="button" id="reAsr" class="mini" style="display:none">🔁 重新辨識</button>
+        </span>
+      </div>
+      <textarea id="refText" rows="2" placeholder="上傳參考音檔後會自動用 Breeze ASR 辨識並填入；也可以自己打（繁體可，會一併轉換）"></textarea>
+    </div>
+    <div class="hint">不上傳參考音檔時，改用下方「語音指示」做 voice design（純文字描述音色）。</div>
+    <details>
+      <summary>進階設定（語音指示 / CFG / seed）</summary>
+      <div style="margin-top:12px">
+        <label class="head" for="instruction" style="font-weight:500;font-size:13.5px">語音指示 instruction（選填）</label>
+        <input type="text" id="instruction" placeholder="例：Speak slowly with a warm tone. / 語速放慢、溫柔一點">
+      </div>
+      <div class="adv">
+        <div>CFG scale
+          <span class="info" tabindex="0">?
+            <span class="tip"><b>Classifier-Free Guidance 強度</b>：控制模型多「聽話」——多大程度遵循「語音指示 instruction」。<br>
+            <b>1.0</b>＝不加強，純聲音克隆時最自然（預設）。<br>
+            <b>4</b>＝官方建議值，用在 voice design（沒參考音檔、純文字描述音色）或 voice direction（參考音檔＋指示語氣）時。<br>
+            太高（&gt;6）容易失真、語氣過頭。</span>
+          </span>
+          <input type="number" id="cfg" value="1.0" step="0.5" min="0.5">
+        </div>
+        <div>Seed
+          <span class="info" tabindex="0">?
+            <span class="tip"><b>隨機種子</b>：生成有隨機性，同樣的文字＋參考音檔＋設定＋同一個 seed 會得到同樣的結果。<br>
+            結果不滿意 → 換個數字重抽一次；<br>
+            結果滿意 → 記下這個 seed，之後可以重現。<br>
+            數字本身沒有好壞之分。</span>
+          </span>
+          <input type="number" id="seed" value="42" step="1">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <button class="primary" id="go" disabled>產生語音</button>
+  <div id="err"></div>
+
+  <div class="card" id="resultsCard" style="display:none">
+    <label class="head">產生結果</label>
+    <div id="results"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let refBlob = null, refName = "";
+
+// ---- health poll ----
+async function poll() {
+  try {
+    const r = await fetch("/health");
+    const j = await r.json();
+    if (j.status === "ok") {
+      $("status").textContent = "✓ 模型就緒"; $("status").className = "ok"; $("go").disabled = false;
+      return;
+    }
+    if (j.status === "error") {
+      $("status").textContent = "✗ 模型載入失敗"; $("status").className = "bad";
+      showErr("模型載入失敗：" + (j.detail || "")); return;
+    }
+    $("status").textContent = "⏳ 模型載入中…";
+  } catch { $("status").textContent = "⏳ 等待伺服器…"; }
+  setTimeout(poll, 3000);
+}
+poll();
+
+// ---- t2s live preview (debounced) ----
+let t;
+function schedulePreview() { clearTimeout(t); t = setTimeout(updatePreview, 400); }
+async function updatePreview() {
+  const text = $("text").value;
+  if (!$("t2s").checked || !text.trim()) { $("preview").style.display = "none"; return; }
+  try {
+    const fd = new FormData(); fd.append("text", text);
+    const j = await (await fetch("/api/convert", { method: "POST", body: fd })).json();
+    if (j.changed) {
+      $("preview").textContent = "將送出（簡體）： " + j.converted;
+      $("preview").style.display = "block";
+    } else $("preview").style.display = "none";
+  } catch {}
+}
+$("text").addEventListener("input", schedulePreview);
+$("t2s").addEventListener("change", updatePreview);
+
+// ---- vocal event chips: insert at cursor ----
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const ta = $("text"), ev = chip.dataset.ev;
+    const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s;
+    const before = ta.value.slice(0, s), after = ta.value.slice(e);
+    const lead = before && !/\s$/.test(before) ? " " : "";
+    const trail = after && !/^\s/.test(after) ? " " : "";
+    const ins = lead + ev + trail;
+    ta.value = before + ins + after;
+    const pos = s + ins.length;
+    ta.focus(); ta.setSelectionRange(pos, pos);
+    schedulePreview();
+  });
+});
+
+// ---- reference upload ----
+const drop = $("drop");
+drop.onclick = () => $("refFile").click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) setRef(e.dataTransfer.files[0]); };
+$("refFile").onchange = e => { if (e.target.files[0]) setRef(e.target.files[0]); };
+function setRef(f) {
+  refBlob = f; refName = f.name;
+  drop.textContent = "🎙 " + f.name + "（點擊可更換）";
+  drop.classList.add("hasfile");
+  const a = $("refPreview"); a.src = URL.createObjectURL(f); a.style.display = "block";
+  transcribeRef();
+}
+
+// ---- auto-transcribe the reference clip (Breeze ASR) ----
+let asrBusy = false;
+async function transcribeRef() {
+  if (!refBlob || asrBusy) return;
+  asrBusy = true;
+  const ta = $("refText"), st = $("asrStatus");
+  ta.classList.add("busy"); ta.readOnly = true;
+  st.textContent = "⏳ Breeze ASR 辨識中…（首次約 10–20 秒）";
+  $("reAsr").style.display = "none";
+  try {
+    const fd = new FormData(); fd.append("ref_audio", refBlob, refName);
+    const r = await fetch("/api/transcribe_ref", { method: "POST", body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || ("HTTP " + r.status));
+    ta.value = j.text || "";
+    st.textContent = j.text
+      ? "✓ 已自動辨識（" + (j.source === "local" ? "內建" : "ASR 服務") + "，" + j.elapsed_sec + "s）— 請核對後再產生"
+      : "辨識不到語音，請手動輸入";
+  } catch (e) {
+    st.textContent = "辨識失敗：" + e.message + "（請手動輸入）";
+  }
+  ta.classList.remove("busy"); ta.readOnly = false;
+  $("reAsr").style.display = "inline-block";
+  asrBusy = false;
+}
+$("reAsr").onclick = transcribeRef;
+
+function showErr(m) { $("err").textContent = m; $("err").style.display = "block"; }
+
+// ---- generate ----
+$("go").onclick = async () => {
+  $("err").style.display = "none";
+  const text = $("text").value.trim();
+  if (!text) return showErr("請先輸入要合成的段落。");
+  if (asrBusy) return showErr("參考音檔還在辨識中，請稍候。");
+  if (refBlob && !$("refText").value.trim()) return showErr("上傳參考音檔後，請填參考音檔的逐字稿。");
+  if (!refBlob && $("refText").value.trim()) return showErr("填了逐字稿但沒有上傳參考音檔。");
+
+  const fd = new FormData();
+  fd.append("text", text);
+  fd.append("ref_text", $("refText").value);
+  fd.append("instruction", $("instruction").value);
+  fd.append("convert_t2s", $("t2s").checked ? "1" : "0");
+  fd.append("cfg_scale", $("cfg").value || "1.0");
+  fd.append("seed", $("seed").value || "42");
+  if (refBlob) fd.append("ref_audio", refBlob, refName);
+
+  const btn = $("go");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>產生中…（依段落長度約數秒到一分鐘）';
+  try {
+    const r = await fetch("/api/tts", { method: "POST", body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || ("HTTP " + r.status));
+    addResult(j, text);
+  } catch (e) { showErr("產生失敗：" + e.message); }
+  btn.disabled = false; btn.textContent = "產生語音";
+};
+
+function addResult(j, originalText) {
+  $("resultsCard").style.display = "block";
+  const div = document.createElement("div");
+  div.className = "result";
+  const label = originalText.length > 60 ? originalText.slice(0, 60) + "…" : originalText;
+  div.innerHTML =
+    '<div class="meta">' + new Date().toLocaleTimeString() + ' · ' + j.duration_sec + 's 音訊 · 生成 '
+    + j.elapsed_sec + 's（RTF ' + j.rtf + '）' + (j.converted ? ' · 已轉簡體' : '') + '<br>「'
+    + label.replace(/</g, "&lt;") + '」</div>'
+    + '<audio controls src="' + j.url + '"></audio>'
+    + '<a class="dl" href="' + j.url + '?download=1">⬇ 下載 WAV</a>';
+  $("results").prepend(div);
+}
+</script>
+</body>
+</html>

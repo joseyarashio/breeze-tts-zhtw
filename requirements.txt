@@ -1,0 +1,2 @@
+# Our additions on top of upstream/breeze-tts/requirements.txt
+opencc-python-reimplemented>=0.1.7
