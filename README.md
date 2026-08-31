@@ -6,8 +6,9 @@ A 繁體中文-first wrapper around [BreezeBlue/Breeze-TTS-2](https://huggingfac
 What this adds on top of upstream:
 
 - **Web UI** — paste a paragraph, drop a reference clip, preview, download WAV.
-- **繁 → 簡 before synthesis** — the model was trained on Simplified; type Traditional,
-  we convert with OpenCC (live preview of what will be spoken). Applies to vocal-event
+- **繁 → 簡 before synthesis** — type Traditional, we convert with OpenCC (live preview of
+  what will be spoken). Kept ON by default: in A/B listening tests on the same seed the
+  Simplified-fed output was clearly better (an ASR round-trip shows no difference, so judge by ear). Applies to vocal-event
   tags too (`[嘆氣]` → `[叹气]`).
 - **Reference clip auto-transcription** — upload a clip with no transcript and the
   逐字稿 field is filled by Breeze-ASR-25 (Whisper-large-v2 fine-tune, Traditional output),
